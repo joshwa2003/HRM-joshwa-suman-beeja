@@ -646,13 +646,33 @@ exports.scheduleInterview = async (req, res) => {
     
     // Validate required fields
     const requiredFields = ['type', 'scheduledDate', 'duration', 'mode', 'primaryInterviewer'];
-    const missingFields = requiredFields.filter(field => !req.body[field]);
+    const missingFields = requiredFields.filter(field => !req.body[field] || req.body[field] === '');
     
     if (missingFields.length > 0) {
+      console.log('Missing required fields:', missingFields);
+      console.log('Request body fields:', Object.keys(req.body));
       return res.status(400).json({
         success: false,
         message: `Missing required fields: ${missingFields.join(', ')}`,
-        error: 'Validation failed'
+        error: 'Validation failed',
+        details: { missingFields, receivedFields: Object.keys(req.body) }
+      });
+    }
+    
+    // Validate field types and values
+    if (isNaN(parseInt(req.body.duration)) || parseInt(req.body.duration) < 15) {
+      return res.status(400).json({
+        success: false,
+        message: 'Duration must be a number and at least 15 minutes',
+        error: 'Invalid duration'
+      });
+    }
+    
+    if (req.body.round && (isNaN(parseInt(req.body.round)) || parseInt(req.body.round) < 1)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Round must be a number and at least 1',
+        error: 'Invalid round'
       });
     }
     
@@ -675,12 +695,21 @@ exports.scheduleInterview = async (req, res) => {
     console.log('Current DateTime:', now);
     console.log('Is scheduled date in past?', scheduledDateTime < now);
     
-    // Add a small buffer (1 minute) to account for processing time
-    const oneMinuteAgo = new Date(now.getTime() - 60000);
-    if (scheduledDateTime < oneMinuteAgo) {
+    // Check if the date is valid
+    if (isNaN(scheduledDateTime.getTime())) {
       return res.status(400).json({
         success: false,
-        message: 'Interview cannot be scheduled in the past',
+        message: 'Invalid date format provided',
+        error: 'Invalid date format'
+      });
+    }
+    
+    // Add a small buffer (5 minutes) to account for processing time
+    const fiveMinutesAgo = new Date(now.getTime() - 300000);
+    if (scheduledDateTime < fiveMinutesAgo) {
+      return res.status(400).json({
+        success: false,
+        message: 'Interview cannot be scheduled in the past. Please select a future date and time.',
         error: 'Invalid date'
       });
     }
@@ -694,10 +723,10 @@ exports.scheduleInterview = async (req, res) => {
       });
     }
     
-    if (req.body.mode === 'In-Person' && !req.body.location) {
+    if ((req.body.mode === 'Offline' || req.body.mode === 'In-Person') && !req.body.location) {
       return res.status(400).json({
         success: false,
-        message: 'Location is required for in-person interviews',
+        message: 'Location is required for offline/in-person interviews',
         error: 'Missing location'
       });
     }
@@ -709,7 +738,8 @@ exports.scheduleInterview = async (req, res) => {
       job: application.job._id,
       scheduledBy: req.user.id,
       interviewer: req.body.primaryInterviewer, // Ensure interviewer field is set
-      primaryInterviewer: req.body.primaryInterviewer // Ensure primaryInterviewer field is set
+      primaryInterviewer: req.body.primaryInterviewer, // Ensure primaryInterviewer field is set
+      round: req.body.round || 1 // Default to round 1 if not provided
     };
     
     console.log('Interview data to save:', JSON.stringify(interviewData, null, 2));

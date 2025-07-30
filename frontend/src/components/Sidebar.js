@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
+import api from '../utils/api';
 import {
   Box,
   List,
@@ -44,6 +45,21 @@ const Sidebar = ({ isOpen, onToggle }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [expandedMenus, setExpandedMenus] = useState({});
+  const [profileData, setProfileData] = useState(null);
+
+  // Fetch profile data to get profile photo
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      try {
+        const response = await api.get('/auth/profile');
+        setProfileData(response.data.user);
+      } catch (error) {
+        console.error('Error fetching profile data:', error);
+      }
+    };
+
+    fetchProfileData();
+  }, []);
 
   const toggleSubmenu = (menuKey) => {
     setExpandedMenus(prev => ({
@@ -116,25 +132,52 @@ const Sidebar = ({ isOpen, onToggle }) => {
       });
     }
 
-    // Leave & Attendance Management
-    if (hasAnyRole(['Admin', 'Vice President', 'HR BP', 'HR Manager', 'HR Executive', 'Team Manager', 'Team Leader'])) {
-      const leaveSubmenu = [
-        { title: 'Leave Requests', path: '/admin/leave/requests', icon: 'bi-calendar-check' },
-        { title: 'Leave Policies', path: '/admin/leave/policies', icon: 'bi-file-text' },
-        { title: 'Holiday Calendar', path: '/admin/leave/holidays', icon: 'bi-calendar-event' }
+    // Leave & Attendance Management - Available to all roles
+    if (hasAnyRole(['Admin', 'Vice President', 'HR BP', 'HR Manager', 'HR Executive', 'Team Manager', 'Team Leader', 'Employee'])) {
+      const submenuItems = [
+        { title: 'My Attendance', path: '/employee/attendance', icon: 'bi-clock-history' }
       ];
 
-      const attendanceSubmenu = [
-        { title: 'Attendance Records', path: '/admin/attendance/records', icon: 'bi-clock-history' },
-        { title: 'Attendance Reports', path: '/admin/attendance/reports', icon: 'bi-graph-up' },
-        { title: 'Regularization', path: '/admin/attendance/regularization', icon: 'bi-pencil-square' }
-      ];
+      // Add management features for higher roles
+      if (hasAnyRole(['Admin', 'Vice President', 'HR BP', 'HR Manager', 'HR Executive', 'Team Manager', 'Team Leader'])) {
+        submenuItems.push(
+          { title: 'Live Employee Status', path: '/admin/leave/live-status', icon: 'bi-broadcast' },
+          { title: 'Leave Requests', path: '/admin/leave/requests', icon: 'bi-calendar-check' },
+          { title: 'Attendance Reports', path: '/admin/reports/attendance', icon: 'bi-graph-up' },
+          { title: 'Leave Policies', path: '/admin/leave/policies', icon: 'bi-file-text' },
+          { title: 'Holiday Calendar', path: '/admin/leave/holidays', icon: 'bi-calendar-event' },
+          { title: 'Regularization Dashboard', path: '/admin/regularization', icon: 'bi-clipboard-check' }
+        );
+        
+        // Add Work Hours Settings for HR roles only
+        if (hasAnyRole(['Admin', 'Vice President', 'HR BP', 'HR Manager', 'HR Executive'])) {
+          const workHoursPath = hasRole('HR Manager') ? '/hr/leave/work-hours' : '/admin/leave/work-hours';
+          submenuItems.push(
+            { title: 'Work Hours Settings', path: workHoursPath, icon: 'bi-clock' }
+          );
+        }
+
+        // Add Permissions section for management roles
+        if (hasAnyRole(['Admin', 'Vice President', 'HR BP', 'HR Manager', 'HR Executive', 'Team Manager', 'Team Leader'])) {
+          submenuItems.push(
+            { title: 'Permissions', path: '/admin/leave/permissions', icon: 'bi-shield-check' }
+          );
+        }
+      }
+
+      // Add employee-specific regularization features
+      if (hasRole('Employee')) {
+        submenuItems.push(
+          { title: 'Request Regularization', path: '/employee/regularization/request', icon: 'bi-clock-history' },
+          { title: 'My Requests', path: '/employee/regularization', icon: 'bi-list-check' }
+        );
+      }
 
       menuItems.push({
         key: 'leave-attendance',
         title: 'Leave & Attendance',
         icon: 'bi-calendar3',
-        submenu: [...leaveSubmenu, ...attendanceSubmenu]
+        submenu: submenuItems
       });
     }
 
@@ -152,22 +195,55 @@ const Sidebar = ({ isOpen, onToggle }) => {
       });
     }
 
-    // Payroll Management - Admin, VP, HR roles
-    if (hasAnyRole(['Admin', 'Vice President', 'HR BP', 'HR Manager', 'HR Executive'])) {
+    // Permissions - Separate section for employees
+    if (hasRole('Employee')) {
       menuItems.push({
-        key: 'payroll',
-        title: 'Payroll Management',
-        icon: 'bi-currency-dollar',
-        submenu: [
+        key: 'permissions',
+        title: 'Permissions',
+        icon: 'bi-shield-check',
+        path: '/employee/permissions'
+      });
+    }
+
+    // Payroll Management - Admin, VP, HR roles, Team Manager, Team Leader
+    if (hasAnyRole(['Admin', 'Vice President', 'HR BP', 'HR Manager', 'HR Executive', 'Team Manager', 'Team Leader'])) {
+      const payrollSubmenu = [];
+      
+      // Full access for Admin, VP, HR roles
+      if (hasAnyRole(['Admin', 'Vice President', 'HR BP', 'HR Manager', 'HR Executive'])) {
+        payrollSubmenu.push(
           { title: 'Salary Structure', path: '/admin/payroll/structure', icon: 'bi-calculator' },
           { title: 'Process Payroll', path: '/admin/payroll/process', icon: 'bi-gear' },
           { title: 'Payslips', path: '/admin/payroll/payslips', icon: 'bi-file-earmark-text' },
           { title: 'Reimbursements', path: '/admin/payroll/reimbursements', icon: 'bi-receipt' }
+        );
+      } else if (hasAnyRole(['Team Manager', 'Team Leader'])) {
+        // Limited access for Team Manager and Team Leader - only Reimbursements
+        payrollSubmenu.push(
+          { title: 'Reimbursements', path: '/admin/payroll/reimbursements', icon: 'bi-receipt' }
+        );
+      }
+
+      menuItems.push({
+        key: 'payroll',
+        title: 'Payroll Management',
+        icon: 'bi-currency-dollar',
+        submenu: payrollSubmenu
+      });
+    } else if (hasRole('Employee')) {
+      // Employee Payroll Management - Limited access
+      menuItems.push({
+        key: 'employee-payroll',
+        title: 'Payroll Management',
+        icon: 'bi-currency-dollar',
+        submenu: [
+          { title: 'Payslip', path: '/employee/payroll/payslip', icon: 'bi-file-earmark-text' },
+          { title: 'Reimbursements', path: '/employee/payroll/reimbursements', icon: 'bi-receipt' }
         ]
       });
     }
 
-    // Recruitment Management - HR Manager gets different paths
+    // Recruitment Management - HR Manager gets separate menu
     if (hasRole('HR Manager')) {
       menuItems.push({
         key: 'recruitment',
@@ -181,6 +257,7 @@ const Sidebar = ({ isOpen, onToggle }) => {
         ]
       });
     } else if (hasAnyRole(['Admin', 'Vice President', 'HR BP', 'HR Executive'])) {
+      // Admin recruitment menu
       menuItems.push({
         key: 'recruitment',
         title: 'Recruitment',
@@ -189,7 +266,7 @@ const Sidebar = ({ isOpen, onToggle }) => {
           { title: 'Job Postings', path: '/admin/recruitment/jobs', icon: 'bi-briefcase' },
           { title: 'Applications', path: '/admin/recruitment/applications', icon: 'bi-file-person' },
           { title: 'Interviews', path: '/admin/recruitment/interviews', icon: 'bi-chat-dots' },
-          { title: 'Offer Letters', path: '/admin/recruitment/offers', icon: 'bi-envelope-check' }
+          { title: 'Offer Letters', path: '/admin/recruitment/offer-letters', icon: 'bi-envelope-check' }
         ]
       });
     }
@@ -205,7 +282,6 @@ const Sidebar = ({ isOpen, onToggle }) => {
         ]
       });
     }
-
 
     // Performance Management
     if (hasAnyRole(['Admin', 'Vice President', 'HR BP', 'HR Manager', 'HR Executive', 'Team Manager', 'Team Leader'])) {

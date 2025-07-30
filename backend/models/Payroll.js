@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const mongoosePaginate = require('mongoose-paginate-v2');
 
 const payrollSchema = new mongoose.Schema({
   employee: {
@@ -228,5 +229,8 @@ payrollSchema.methods.toJSON = function() {
   const payrollObject = this.toObject();
   return payrollObject;
 };
+
+// Add pagination plugin
+payrollSchema.plugin(mongoosePaginate);
 
 module.exports = mongoose.model('Payroll', payrollSchema);

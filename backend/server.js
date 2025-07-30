@@ -24,6 +24,18 @@ const debugRoutes = require('./routes/debug');
 const chatRoutes = require('./routes/chat');
 const recruitmentRoutes = require('./routes/recruitment');
 const publicRoutes = require('./routes/public');
+const attendanceRoutes = require('./routes/attendance');
+const payrollRoutes = require('./routes/payroll');
+const salaryStructureRoutes = require('./routes/salaryStructure');
+const reimbursementRoutes = require('./routes/reimbursements');
+const systemRoutes = require('./routes/system');
+const regularizationRoutes = require('./routes/regularization');
+const regularizationHRRoutes = require('./routes/regularizationHR');
+const regularizationTeamLeaderRoutes = require('./routes/regularizationTeamLeader');
+const regularizationTeamManagerRoutes = require('./routes/regularizationTeamManager');
+const regularizationVPRoutes = require('./routes/regularizationVP');
+const notificationRoutes = require('./routes/notifications');
+const permissionRoutes = require('./routes/permissions');
 
 const app = express();
 const server = http.createServer(app);
@@ -77,11 +89,16 @@ mongoose.connect(process.env.MONGODB_URI, {
     const createDummyUsers = require('./scripts/createDummyUsers');
     await createDummyUsers();
     
-    console.log('System initialization completed successfully');
+
     
     // Initialize document cleanup scheduler
     scheduleCleanup();
     
+    // Step 4: Initialize system settings (work hours, etc.)
+    const initializeSystemSettings = require('./scripts/initializeSystemSettings');
+    await initializeSystemSettings();
+    
+    console.log('System initialization completed successfully');
   } catch (error) {
     console.error('Error during initialization:', error);
   }
@@ -101,6 +118,18 @@ app.use('/api/debug', debugRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/recruitment', recruitmentRoutes);
 app.use('/api/public', publicRoutes);
+app.use('/api/attendance', attendanceRoutes);
+app.use('/api/payroll', payrollRoutes);
+app.use('/api/salary-structures', salaryStructureRoutes);
+app.use('/api/reimbursements', reimbursementRoutes);
+app.use('/api/system', systemRoutes);
+app.use('/api/regularization', regularizationRoutes);
+app.use('/api/regularization-hr', regularizationHRRoutes);
+app.use('/api/regularization-team-leader', regularizationTeamLeaderRoutes);
+app.use('/api/regularization-team-manager', regularizationTeamManagerRoutes);
+app.use('/api/regularization-vp', regularizationVPRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/permissions', permissionRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {

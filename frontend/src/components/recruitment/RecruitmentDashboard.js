@@ -61,6 +61,11 @@ const RecruitmentDashboard = () => {
   });
   const [loading, setLoading] = useState(true);
 
+  // Get the correct base path based on user role
+  const getBasePath = () => {
+    return user?.role === 'HR Manager' ? '/hr/recruitment' : '/admin/recruitment';
+  };
+
   useEffect(() => {
     fetchDashboardData();
   }, []);
@@ -148,7 +153,7 @@ const RecruitmentDashboard = () => {
                 <Typography variant="h6">Recent Applications</Typography>
                 <Button
                   component={Link}
-                  to="/admin/recruitment/applications"
+                  to={`${getBasePath()}/applications`}
                   variant="outlined"
                   size="small"
                 >
@@ -220,7 +225,7 @@ const RecruitmentDashboard = () => {
                 <Typography variant="h6">Upcoming Interviews</Typography>
                 <Button
                   component={Link}
-                  to="/admin/recruitment/interviews"
+                  to={`${getBasePath()}/interviews`}
                   variant="outlined"
                   size="small"
                 >
@@ -273,7 +278,7 @@ const RecruitmentDashboard = () => {
                 <Grid item>
                   <Button
                     component={Link}
-                    to="/admin/recruitment/jobs"
+                    to={`${getBasePath()}/jobs`}
                     variant="contained"
                     startIcon={<WorkIcon />}
                   >
@@ -283,7 +288,7 @@ const RecruitmentDashboard = () => {
                 <Grid item>
                   <Button
                     component={Link}
-                    to="/admin/recruitment/applications"
+                    to={`${getBasePath()}/applications`}
                     variant="contained"
                     startIcon={<PersonIcon />}
                   >
@@ -293,7 +298,7 @@ const RecruitmentDashboard = () => {
                 <Grid item>
                   <Button
                     component={Link}
-                    to="/admin/recruitment/interviews"
+                    to={`${getBasePath()}/interviews`}
                     variant="contained"
                     startIcon={<ScheduleIcon />}
                   >
@@ -303,7 +308,7 @@ const RecruitmentDashboard = () => {
                 <Grid item>
                   <Button
                     component={Link}
-                    to="/admin/recruitment/offers"
+                    to={`${getBasePath()}/offers`}
                     variant="contained"
                     startIcon={<EmailIcon />}
                   >

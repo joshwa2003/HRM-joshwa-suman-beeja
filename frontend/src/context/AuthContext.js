@@ -190,6 +190,26 @@ export const AuthProvider = ({ children }) => {
     });
   };
 
+  // Refresh user data from server
+  const refreshUser = async () => {
+    try {
+      const response = await authAPI.getProfile();
+      const userData = response.data.user;
+      
+      // Update localStorage and state
+      localStorage.setItem('user', JSON.stringify(userData));
+      dispatch({
+        type: AUTH_ACTIONS.UPDATE_USER,
+        payload: userData,
+      });
+      
+      return userData;
+    } catch (error) {
+      console.error('Error refreshing user data:', error);
+      return null;
+    }
+  };
+
   // Clear error function
   const clearError = () => {
     dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
@@ -240,6 +260,7 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     updateUser,
+    refreshUser,
     clearError,
     hasRole,
     hasAnyRole,

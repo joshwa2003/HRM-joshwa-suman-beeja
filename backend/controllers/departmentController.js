@@ -184,7 +184,7 @@ const createDepartment = async (req, res) => {
 
 // @desc    Update department
 // @route   PUT /api/departments/:id
-// @access  Private (Admin, VP, HR BP, HR Manager, HR Executive, Team Manager, Team Leader)
+// @access  Private (Admin, VP, HR BP, HR Manager)
 const updateDepartment = async (req, res) => {
   try {
     // Check for validation errors
@@ -305,7 +305,7 @@ const updateDepartment = async (req, res) => {
 
 // @desc    Delete department
 // @route   DELETE /api/departments/:id
-// @access  Private (Admin, VP, HR BP, HR Manager, HR Executive, Team Manager, Team Leader)
+// @access  Private (Admin only)
 const deleteDepartment = async (req, res) => {
   try {
     const department = await Department.findById(req.params.id);

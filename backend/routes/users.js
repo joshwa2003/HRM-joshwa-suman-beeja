@@ -1,8 +1,10 @@
 const express = require('express');
 const { body } = require('express-validator');
-const { auth, roleAccess } = require('../middleware/auth');
+const { auth,adminOnly, roleAccess } = require('../middleware/auth');
 const {
   getAllUsers,
+  getTeamLeads,
+  getEmployees,
   getUserById,
   createUser,
   updateUser,
@@ -10,6 +12,7 @@ const {
   getRoles,
   getNextEmployeeId,
   getRoleStats,
+  getUsersByHierarchy,
   getUsersByRole
 } = require('../controllers/userController');
 

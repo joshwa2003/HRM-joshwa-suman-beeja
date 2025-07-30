@@ -30,7 +30,10 @@ import {
   Avatar,
   Pagination,
   Menu,
-  Divider
+  Divider,
+  OutlinedInput,
+  Checkbox,
+  ListItemText
 } from '@mui/material';
 import {
   Person as PersonIcon,
@@ -80,11 +83,12 @@ const Applications = () => {
     mode: 'Online',
     location: '',
     meetingLink: '',
-    primaryInterviewer: '',
-    additionalInterviewers: [],
+    allInterviewers: [], // Multiple interviewer selection
     instructions: '',
     round: 1
   });
+
+  const [isSubmitting, setIsSubmitting] = useState(false); // Add loading state for button
 
   const [alert, setAlert] = useState({ show: false, message: '', type: '' });
 
@@ -185,8 +189,7 @@ const Applications = () => {
       mode: 'Online',
       location: '',
       meetingLink: '',
-      primaryInterviewer: '',
-      additionalInterviewers: [],
+      allInterviewers: [], // Reset multiple interviewer selection
       instructions: '',
       round: 1
     });
@@ -197,20 +200,90 @@ const Applications = () => {
   const handleScheduleSubmit = async (e) => {
     e.preventDefault();
     
+    // Prevent double submission
+    if (isSubmitting) {
+      return;
+    }
+    
+    // Validate required fields
+    if (!scheduleData.scheduledDate || !scheduleData.scheduledTime) {
+      showAlert('Please select both date and time for the interview', 'error');
+      return;
+    }
+    
+    // Check if at least one interviewer is selected
+    if (!scheduleData.allInterviewers || scheduleData.allInterviewers.length === 0) {
+      showAlert('Please select at least one interviewer', 'error');
+      return;
+    }
+    
+    // Validate date is not in the past
+    const scheduledDateTime = new Date(`${scheduleData.scheduledDate}T${scheduleData.scheduledTime}`);
+    const now = new Date();
+    
+    if (scheduledDateTime <= now) {
+      showAlert('Please select a future date and time for the interview', 'error');
+      return;
+    }
+    
+    // Validate mode-specific requirements
+    if (scheduleData.mode === 'Online' && !scheduleData.meetingLink) {
+      showAlert('Meeting link is required for online interviews', 'error');
+      return;
+    }
+    
+    if (scheduleData.mode === 'Offline' && !scheduleData.location) {
+      showAlert('Location is required for offline interviews', 'error');
+      return;
+    }
+    
+    
     try {
+      setIsSubmitting(true); // Set loading state
+      
+      // Use allInterviewers - first one is primary, rest are additional
+      const finalPrimaryInterviewer = scheduleData.allInterviewers[0];
+      const finalAdditionalInterviewers = scheduleData.allInterviewers.slice(1);
+      
       const submitData = {
-        ...scheduleData,
+        // Basic interview details
         title: `${scheduleData.type} Interview - Round ${scheduleData.round}`,
         description: `Interview for ${selectedApplication.firstName} ${selectedApplication.lastName}`,
-        scheduledDate: new Date(`${scheduleData.scheduledDate}T${scheduleData.scheduledTime}`).toISOString()
+        type: scheduleData.type,
+        round: parseInt(scheduleData.round),
+        
+        // Scheduling information
+        scheduledDate: new Date(`${scheduleData.scheduledDate}T${scheduleData.scheduledTime}`).toISOString(),
+        scheduledTime: scheduleData.scheduledTime,
+        duration: parseInt(scheduleData.duration),
+        
+        // Interview mode and location
+        mode: scheduleData.mode,
+        location: scheduleData.mode === 'Offline' ? scheduleData.location : '',
+        meetingLink: scheduleData.mode === 'Online' ? scheduleData.meetingLink : '',
+        
+        // Interviewer information
+        primaryInterviewer: finalPrimaryInterviewer,
+        interviewer: finalPrimaryInterviewer, // Backend expects both fields
+        additionalInterviewers: finalAdditionalInterviewers,
+        allInterviewers: scheduleData.allInterviewers,
+        
+        // Instructions
+        interviewInstructions: scheduleData.instructions || ''
       };
+
+      console.log('Submitting interview data:', submitData);
 
       await api.post(`/recruitment/applications/${selectedApplication._id}/interviews`, submitData);
       showAlert('Interview scheduled successfully', 'success');
       setShowScheduleModal(false);
       fetchApplications();
     } catch (error) {
-      showAlert(error.response?.data?.message || 'Error scheduling interview', 'error');
+      console.error('Error scheduling interview:', error);
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Error scheduling interview';
+      showAlert(errorMessage, 'error');
+    } finally {
+      setIsSubmitting(false); // Reset loading state
     }
   };
 
@@ -588,9 +661,12 @@ const Applications = () => {
                     value={scheduleData.mode}
                     label="Interview Mode"
                     onChange={(e) => setScheduleData(prev => ({ ...prev, mode: e.target.value }))}
+                    required
                   >
                     <MenuItem value="Online">Online</MenuItem>
                     <MenuItem value="Offline">Offline</MenuItem>
+                    <MenuItem value="Phone">Phone</MenuItem>
+                    <MenuItem value="Video Call">Video Call</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
@@ -599,17 +675,27 @@ const Applications = () => {
                 <FormControl fullWidth>
                   <InputLabel>Primary Interviewer</InputLabel>
                   <Select
-                    value={scheduleData.primaryInterviewer}
-                    label="Primary Interviewer"
-                    onChange={(e) => setScheduleData(prev => ({ ...prev, primaryInterviewer: e.target.value }))}
-                    required
+                    multiple
+                    value={scheduleData.allInterviewers}
+                    onChange={(e) => setScheduleData(prev => ({ ...prev, allInterviewers: e.target.value }))}
+                    input={<OutlinedInput label="Primary Interviewer" />}
+                    renderValue={(selected) => {
+                      if (selected.length === 0) {
+                        return <em>Select Interviewer</em>;
+                      }
+                      if (selected.length === 1) {
+                        const user = users.find(u => u._id === selected[0]);
+                        return user ? `${user.firstName} ${user.lastName} (${user.role})` : selected[0];
+                      }
+                      return `${selected.length} interviewers selected`;
+                    }}
                   >
-                  <MenuItem value="">Select Interviewer</MenuItem>
-                  {users && users.map(user => (
-                    <MenuItem key={user._id} value={user._id}>
-                      {user.firstName} {user.lastName} ({user.role})
-                    </MenuItem>
-                  ))}
+                    {users && users.map(user => (
+                      <MenuItem key={user._id} value={user._id}>
+                        <Checkbox checked={scheduleData.allInterviewers.indexOf(user._id) > -1} />
+                        <ListItemText primary={`${user.firstName} ${user.lastName} (${user.role})`} />
+                      </MenuItem>
+                    ))}
                   </Select>
                 </FormControl>
               </Grid>
@@ -662,11 +748,16 @@ const Applications = () => {
             </Grid>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setShowScheduleModal(false)}>
+            <Button onClick={() => setShowScheduleModal(false)} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit" variant="contained">
-              Schedule Interview
+            <Button 
+              type="submit" 
+              variant="contained"
+              disabled={isSubmitting}
+              startIcon={isSubmitting ? <CircularProgress size={20} /> : <ScheduleIcon />}
+            >
+              {isSubmitting ? 'Scheduling...' : 'Schedule Interview'}
             </Button>
           </DialogActions>
         </form>

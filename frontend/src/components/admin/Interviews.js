@@ -73,6 +73,11 @@ const Interviews = () => {
     total: 0
   });
 
+  // Get the correct base path based on user role
+  const getBasePath = () => {
+    return user?.role === 'HR Manager' ? '/hr/recruitment' : '/admin/recruitment';
+  };
+
   // 3-dot menu states
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedInterview, setSelectedInterview] = useState(null);
@@ -247,7 +252,7 @@ const Interviews = () => {
         
         if (response.ok) {
           // Navigate to offer letters page with selected candidate data
-          navigate('/admin/recruitment/offer-letters', {
+          navigate(`${getBasePath()}/offers`, {
             state: {
               selectedCandidate: selectedInterview
             }

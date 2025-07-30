@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const publicApplicationController = require('../controllers/publicApplicationController');
-const upload = require('../middleware/upload');
+const { resumeUpload } = require('../middleware/upload');
 
 // ==================== PUBLIC JOB ROUTES ====================
 
@@ -15,7 +15,7 @@ router.get('/departments', publicApplicationController.getDepartments);
 router.get('/jobs/:jobId', publicApplicationController.getPublicJob);
 
 // Submit job application (with resume upload)
-router.post('/jobs/:jobId/apply', upload.resumeUpload.single('resume'), publicApplicationController.submitApplication);
+router.post('/jobs/:jobId/apply', resumeUpload.single('resume'), publicApplicationController.submitApplication);
 
 // Get application status (for candidates to check)
 router.get('/application-status', publicApplicationController.getApplicationStatus);
