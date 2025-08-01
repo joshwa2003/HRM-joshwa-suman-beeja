@@ -608,6 +608,124 @@ class EmailService {
     return await this.sendEmail(application.email, subject, html);
   }
 
+  // Send new user credentials email (for admin user creation)
+  async sendNewUserCredentials(data) {
+    const { to, firstName, lastName, email, password, employeeId } = data;
+    const subject = `🔐 Your Account Credentials - Beeja HRM`;
+    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const loginUrl = `${baseUrl}/login`;
+    
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background-color: #007bff; color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { padding: 30px; background-color: #f8f9fa; }
+          .footer { padding: 20px; text-align: center; color: #666; font-size: 12px; background-color: #e9ecef; border-radius: 0 0 10px 10px; }
+          .credentials-box { 
+            background-color: #e7f3ff; 
+            padding: 25px; 
+            border: 2px solid #007bff; 
+            border-radius: 10px; 
+            margin: 25px 0; 
+            text-align: center;
+          }
+          .password-highlight { 
+            background-color: #fff3cd; 
+            padding: 15px; 
+            border: 2px solid #ffc107; 
+            border-radius: 8px; 
+            margin: 15px 0; 
+            font-family: monospace;
+            font-size: 18px;
+            font-weight: bold;
+            text-align: center;
+            color: #856404;
+          }
+          .login-button { 
+            background-color: #007bff; 
+            color: white; 
+            padding: 15px 30px; 
+            text-decoration: none; 
+            border-radius: 8px; 
+            display: inline-block; 
+            margin: 20px 0; 
+            font-weight: bold;
+            font-size: 16px;
+          }
+          .important { background-color: #f8d7da; padding: 15px; border-left: 4px solid #dc3545; margin: 15px 0; border-radius: 5px; }
+          .info-section { background-color: #d1ecf1; padding: 20px; border-left: 4px solid #17a2b8; margin: 20px 0; border-radius: 5px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🔐 Account Created</h1>
+            <h2>Your Login Credentials</h2>
+          </div>
+          <div class="content">
+            <p>Dear ${firstName} ${lastName},</p>
+            
+            <p>Your account has been created in the Beeja HRM system. Please find your login credentials below:</p>
+            
+            <div class="credentials-box">
+              <h3>🔑 Login Details</h3>
+              <p><strong>Email:</strong> ${email}</p>
+              <p><strong>Employee ID:</strong> ${employeeId}</p>
+              <p><strong>Temporary Password:</strong></p>
+              <div class="password-highlight">
+                ${password}
+              </div>
+            </div>
+            
+            <div style="text-align: center;">
+              <a href="${loginUrl}" class="login-button">🚀 Login Now</a>
+            </div>
+            
+            <div class="important">
+              <h3>🔒 Important Security Instructions:</h3>
+              <ul>
+                <li><strong>First Login:</strong> You will be required to change your password on first login</li>
+                <li><strong>Password Security:</strong> Choose a strong password with at least 8 characters</li>
+                <li><strong>Keep Secure:</strong> Do not share your credentials with anyone</li>
+                <li><strong>Profile Completion:</strong> Complete your profile to access all system features</li>
+              </ul>
+            </div>
+            
+            <div class="info-section">
+              <h3>📋 Next Steps:</h3>
+              <ol>
+                <li>Click the login button above or visit the login page</li>
+                <li>Enter your email and temporary password</li>
+                <li>Change your password when prompted</li>
+                <li>Complete your profile information</li>
+                <li>Start using the HRM system</li>
+              </ol>
+            </div>
+            
+            <p>If you have any questions or need assistance, please contact the HR team or system administrator.</p>
+            
+            <p>Welcome to Beeja HRM!</p>
+            
+            <p>Best regards,<br>
+            <strong>System Administrator</strong><br>
+            Beeja HRM</p>
+          </div>
+          <div class="footer">
+            <p>This email contains sensitive login information. Please keep it secure.</p>
+            <p>If you did not expect this email, please contact the administrator immediately.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    return await this.sendEmail(to, subject, html);
+  }
+
   // Send welcome email with login credentials to new user
   async sendWelcomeEmailWithCredentials(user, tempPassword, offer = null) {
     const subject = `🎉 Welcome to Beeja HRM - Your Account Details`;

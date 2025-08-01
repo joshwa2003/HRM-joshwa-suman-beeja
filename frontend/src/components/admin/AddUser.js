@@ -52,7 +52,8 @@ const AddUser = () => {
     phoneNumber: '',
     designation: '',
     joiningDate: '',
-    isActive: true
+    isActive: true,
+    sendEmail: true
   });
 
   // Team assignment states
@@ -280,6 +281,9 @@ const AddUser = () => {
         userData.teamId = teamFormData.selectedTeam;
       }
 
+      // Include email sending preference
+      userData.sendEmail = formData.sendEmail;
+
       const response = await userAPI.createUser(userData);
       
       if (response.data.success) {
@@ -288,6 +292,18 @@ const AddUser = () => {
         // Team assignment is now handled in the backend during user creation
         if (showTeamCreation && teamFormData.selectedTeam) {
           successMessage = 'User created and assigned to team successfully!';
+        }
+
+        // Add email status to success message
+        if (formData.sendEmail && response.data.emailStatus) {
+          if (response.data.emailStatus.sent) {
+            successMessage += ' Login credentials have been sent to the user\'s email.';
+          } else {
+            successMessage += ' Note: Email failed to send - please share credentials manually.';
+            if (response.data.credentials) {
+              console.log('User credentials:', response.data.credentials);
+            }
+          }
         }
 
         setSuccess(successMessage);
@@ -538,6 +554,29 @@ const AddUser = () => {
                   }
                   label="Active User (can login to the system)"
                 />
+              </Grid>
+              <Grid item xs={12}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      name="sendEmail"
+                      checked={formData.sendEmail}
+                      onChange={handleInputChange}
+                      sx={{
+                        '& .MuiSwitch-switchBase.Mui-checked': {
+                          color: '#20C997',
+                        },
+                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                          backgroundColor: '#20C997',
+                        },
+                      }}
+                    />
+                  }
+                  label="Send login credentials via email"
+                />
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', ml: 4, mt: 0.5 }}>
+                  When enabled, the user will receive an email with their login credentials and instructions to access the system.
+                </Typography>
               </Grid>
 
               {/* Team Assignment Section - Only for Employee role */}

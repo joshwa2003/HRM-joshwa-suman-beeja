@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import api from '../utils/api';
 import {
   AppBar,
   Toolbar,
@@ -31,7 +32,36 @@ const TopNavBar = ({ onToggleSidebar }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down('lg'));
   
   const [anchorEl, setAnchorEl] = React.useState(null);
+  const [profileData, setProfileData] = useState(null);
   const open = Boolean(anchorEl);
+
+  // Fetch profile data to get profile photo
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      try {
+        const response = await api.get('/auth/profile');
+        setProfileData(response.data.user);
+      } catch (error) {
+        console.error('Error fetching profile data:', error);
+      }
+    };
+
+    fetchProfileData();
+
+    // Listen for profile photo updates
+    const handleProfilePhotoUpdate = (newProfilePhoto) => {
+      setProfileData(prev => ({
+        ...prev,
+        profilePhoto: newProfilePhoto
+      }));
+    };
+
+    window.profilePhotoUpdated = handleProfilePhotoUpdate;
+
+    return () => {
+      delete window.profilePhotoUpdated;
+    };
+  }, []);
 
   const handleProfileMenuOpen = (event) => {
     setAnchorEl(event.currentTarget);
@@ -136,6 +166,7 @@ const TopNavBar = ({ onToggleSidebar }) => {
             aria-expanded={open ? 'true' : undefined}
           >
             <Avatar
+              src={profileData?.profilePhoto}
               sx={{
                 width: 36,
                 height: 36,
@@ -146,7 +177,7 @@ const TopNavBar = ({ onToggleSidebar }) => {
                 border: `2px solid ${theme.palette.grey[200]}`,
               }}
             >
-              {getInitials(user?.firstName, user?.lastName)}
+              {!profileData?.profilePhoto && getInitials(user?.firstName, user?.lastName)}
             </Avatar>
           </IconButton>
         </Box>

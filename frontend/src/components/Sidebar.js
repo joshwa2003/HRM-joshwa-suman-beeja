@@ -46,13 +46,20 @@ const Sidebar = ({ isOpen, onToggle }) => {
   const navigate = useNavigate();
   const [expandedMenus, setExpandedMenus] = useState({});
   const [profileData, setProfileData] = useState(null);
+  const [profileCompletion, setProfileCompletion] = useState(0);
 
-  // Fetch profile data to get profile photo
+  // Fetch profile data to get profile photo and completion percentage
   useEffect(() => {
     const fetchProfileData = async () => {
       try {
         const response = await api.get('/auth/profile');
         setProfileData(response.data.user);
+        
+        // Calculate profile completion percentage
+        if (response.data.user) {
+          const completion = calculateProfileCompletion(response.data.user);
+          setProfileCompletion(completion);
+        }
       } catch (error) {
         console.error('Error fetching profile data:', error);
       }
@@ -60,6 +67,71 @@ const Sidebar = ({ isOpen, onToggle }) => {
 
     fetchProfileData();
   }, []);
+
+  // Calculate profile completion percentage
+  const calculateProfileCompletion = (userData) => {
+    if (!userData) return 0;
+
+    // Define the 5 main sections with equal weighting (20% each)
+    const sections = {
+      personal: {
+        weight: 20,
+        fields: ['firstName', 'lastName', 'email', 'phoneNumber', 'dateOfBirth', 'gender', 'nationality', 'maritalStatus']
+      },
+      work: {
+        weight: 20,
+        fields: ['employeeId', 'department', 'designation', 'joiningDate', 'reportingManager', 'workLocation']
+      },
+      documents: {
+        weight: 20,
+        fields: ['resume', 'panCard', 'aadharCard', 'passport', 'offerLetter']
+      },
+      emergency: {
+        weight: 20,
+        fields: ['emergencyContact.name', 'emergencyContact.phone', 'emergencyContact.relationship', 'emergencyContact.address']
+      },
+      bank: {
+        weight: 20,
+        fields: ['bankDetails.accountNumber', 'bankDetails.bankName', 'bankDetails.ifscCode', 'bankDetails.accountHolderName']
+      }
+    };
+
+    let totalCompletion = 0;
+
+    Object.keys(sections).forEach(sectionKey => {
+      const section = sections[sectionKey];
+      let sectionCompletedFields = 0;
+      let sectionTotalFields = section.fields.length;
+
+      section.fields.forEach(field => {
+        let fieldValue;
+        
+        // Handle document fields differently
+        if (sectionKey === 'documents') {
+          fieldValue = userData.documents && userData.documents[field] && userData.documents[field].fileName;
+        } else {
+          fieldValue = getNestedValue(userData, field);
+        }
+
+        // Check if field is completed
+        if (fieldValue && fieldValue !== '' && fieldValue !== null && fieldValue !== undefined) {
+          sectionCompletedFields++;
+        }
+      });
+
+      // Calculate section completion percentage
+      const sectionCompletion = sectionTotalFields > 0 ? (sectionCompletedFields / sectionTotalFields) : 0;
+      
+      // Add weighted section completion to total
+      totalCompletion += (sectionCompletion * section.weight);
+    });
+
+    return Math.round(totalCompletion);
+  };
+
+  const getNestedValue = (obj, path) => {
+    return path.split('.').reduce((current, key) => current && current[key], obj);
+  };
 
   const toggleSubmenu = (menuKey) => {
     setExpandedMenus(prev => ({
@@ -75,14 +147,16 @@ const Sidebar = ({ isOpen, onToggle }) => {
   const getMenuItems = () => {
     const menuItems = [];
 
-    // Dashboard - Available to all
-    menuItems.push({
-      key: 'dashboard',
-      title: 'Dashboard',
-      icon: 'bi-speedometer2',
-      path: '/dashboard',
-      roles: ['Admin', 'Vice President', 'HR BP', 'HR Manager', 'HR Executive', 'Team Manager', 'Team Leader', 'Employee']
-    });
+    // Dashboard - Available to all, but only show if profile completion >= 70%
+    if (profileCompletion >= 70) {
+      menuItems.push({
+        key: 'dashboard',
+        title: 'Dashboard',
+        icon: 'bi-speedometer2',
+        path: '/dashboard',
+        roles: ['Admin', 'Vice President', 'HR BP', 'HR Manager', 'HR Executive', 'Team Manager', 'Team Leader', 'Employee']
+      });
+    }
 
     // User Management - Admin, VP, HR roles, Team Leaders, Team Managers
     if (hasAnyRole(['Admin', 'Vice President', 'HR BP', 'HR Manager', 'HR Executive', 'Team Manager', 'Team Leader'])) {
@@ -670,6 +744,7 @@ const Sidebar = ({ isOpen, onToggle }) => {
       >
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
           <Avatar
+            src={profileData?.profilePhoto}
             sx={{
               width: 48,
               height: 48,
@@ -682,7 +757,7 @@ const Sidebar = ({ isOpen, onToggle }) => {
               boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
             }}
           >
-            {getInitials(user?.firstName, user?.lastName)}
+            {!profileData?.profilePhoto && getInitials(user?.firstName, user?.lastName)}
           </Avatar>
           <Box sx={{ flexGrow: 1, minWidth: 0 }}>
             <Typography 

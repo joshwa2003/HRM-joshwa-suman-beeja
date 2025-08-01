@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const publicApplicationController = require('../controllers/publicApplicationController');
 const { resumeUpload } = require('../middleware/upload');
+const supabaseUpload = require('../middleware/supabaseUpload');
 
 // ==================== PUBLIC JOB ROUTES ====================
 
@@ -14,8 +15,11 @@ router.get('/departments', publicApplicationController.getDepartments);
 // Get public job details for application
 router.get('/jobs/:jobId', publicApplicationController.getPublicJob);
 
-// Submit job application (with resume upload)
+// Submit job application (with resume upload) - Legacy local storage
 router.post('/jobs/:jobId/apply', resumeUpload.single('resume'), publicApplicationController.submitApplication);
+
+// Submit job application with Supabase (preferred method)
+router.post('/jobs/:jobId/apply-supabase', supabaseUpload.resume, publicApplicationController.submitApplication, supabaseUpload.handleError);
 
 // Get application status (for candidates to check)
 router.get('/application-status', publicApplicationController.getApplicationStatus);

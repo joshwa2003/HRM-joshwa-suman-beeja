@@ -42,7 +42,38 @@ const userSchema = new mongoose.Schema({
     trim: true,
     match: [/^\+?[\d\s-()]+$/, 'Please enter a valid phone number']
   },
+  alternatePhone: {
+    type: String,
+    trim: true,
+    match: [/^\+?[\d\s-()]+$/, 'Please enter a valid phone number']
+  },
+  personalEmail: {
+    type: String,
+    trim: true,
+    lowercase: true,
+    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
+  },
+  nationality: {
+    type: String,
+    trim: true,
+    maxlength: [100, 'Nationality cannot exceed 100 characters']
+  },
+  maritalStatus: {
+    type: String,
+    enum: ['Single', 'Married', 'Divorced', 'Widowed']
+  },
+  bloodGroup: {
+    type: String,
+    enum: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
+  },
   address: {
+    street: String,
+    city: String,
+    state: String,
+    zipCode: String,
+    country: String
+  },
+  permanentAddress: {
     street: String,
     city: String,
     state: String,
@@ -51,6 +82,12 @@ const userSchema = new mongoose.Schema({
   },
   profilePhoto: {
     type: String // URL to profile photo
+  },
+  
+  // Documents storage
+  documents: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
   },
   
   // Holiday-related profile fields
@@ -181,6 +218,23 @@ const userSchema = new mongoose.Schema({
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
+  },
+  
+  // Password Management Fields
+  isFirstLogin: {
+    type: Boolean,
+    default: true
+  },
+  isDefaultPassword: {
+    type: Boolean,
+    default: true
+  },
+  profileCompletionPercentage: {
+    type: Number,
+    default: 0
+  },
+  lastPasswordChange: {
+    type: Date
   }
 }, {
   timestamps: true
@@ -210,6 +264,17 @@ userSchema.pre('save', async function(next) {
       // Hash password with cost of 12
       const salt = await bcrypt.genSalt(12);
       this.password = await bcrypt.hash(this.password, salt);
+      
+      // Update password change timestamp
+      if (!this.isNew) {
+        this.lastPasswordChange = new Date();
+        this.isDefaultPassword = false;
+      }
+    }
+    
+    // Calculate profile completion percentage before saving
+    if (this.isModified() && !this.isNew) {
+      this.profileCompletionPercentage = this.calculateProfileCompletion();
     }
     
     next();
@@ -245,6 +310,119 @@ userSchema.methods.canAccess = function(targetRole) {
     this.constructor.prototype.getRoleLevel.call({ role: targetRole }) : 
     targetRole;
   return userLevel <= targetLevel;
+};
+
+// Method to calculate profile completion percentage
+userSchema.methods.calculateProfileCompletion = function() {
+  const sections = {
+    personal: {
+      weight: 20,
+      fields: ['firstName', 'lastName', 'email', 'phoneNumber', 'dateOfBirth', 'gender', 'nationality', 'maritalStatus']
+    },
+    work: {
+      weight: 20,
+      fields: ['employeeId', 'department', 'designation', 'joiningDate', 'reportingManager', 'workLocation']
+    },
+    documents: {
+      weight: 20,
+      fields: ['resume', 'panCard', 'aadharCard', 'passport', 'offerLetter']
+    },
+    emergency: {
+      weight: 20,
+      fields: ['emergencyContact.name', 'emergencyContact.phone', 'emergencyContact.relationship', 'emergencyContact.address']
+    },
+    bank: {
+      weight: 20,
+      fields: ['bankDetails.accountNumber', 'bankDetails.bankName', 'bankDetails.ifscCode', 'bankDetails.accountHolderName']
+    }
+  };
+
+  let totalCompletion = 0;
+
+  Object.keys(sections).forEach(sectionKey => {
+    const section = sections[sectionKey];
+    let sectionCompletedFields = 0;
+    let sectionTotalFields = section.fields.length;
+
+    section.fields.forEach(field => {
+      let fieldValue;
+      
+      if (sectionKey === 'documents') {
+        fieldValue = this.documents && this.documents[field] && this.documents[field].fileName;
+      } else {
+        fieldValue = this.getNestedValue(field);
+      }
+
+      if (fieldValue && fieldValue !== '' && fieldValue !== null && fieldValue !== undefined) {
+        sectionCompletedFields++;
+      }
+    });
+
+    const sectionCompletion = sectionTotalFields > 0 ? (sectionCompletedFields / sectionTotalFields) : 0;
+    totalCompletion += (sectionCompletion * section.weight);
+  });
+
+  return Math.round(totalCompletion);
+};
+
+// Helper method to get nested values
+userSchema.methods.getNestedValue = function(path) {
+  return path.split('.').reduce((current, key) => current && current[key], this);
+};
+
+// Virtual to check if user can access dashboard (75% profile completion required)
+userSchema.virtual('canAccessDashboard').get(function() {
+  return this.profileCompletionPercentage >= 75;
+});
+
+// Method to generate default password
+userSchema.statics.generateDefaultPassword = function() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%';
+  let password = '';
+  
+  // Ensure at least one uppercase, one lowercase, one number, and one special char
+  password += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random() * 26)];
+  password += 'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 26)];
+  password += '0123456789'[Math.floor(Math.random() * 10)];
+  password += '@#$%'[Math.floor(Math.random() * 4)];
+  
+  // Fill remaining 4 characters randomly
+  for (let i = 4; i < 8; i++) {
+    password += chars[Math.floor(Math.random() * chars.length)];
+  }
+  
+  // Shuffle the password
+  return password.split('').sort(() => Math.random() - 0.5).join('');
+};
+
+// Method to validate password strength
+userSchema.statics.validatePasswordStrength = function(password) {
+  const errors = [];
+  
+  if (password.length < 8) {
+    errors.push('Password must be at least 8 characters long');
+  }
+  
+  if (!/[A-Z]/.test(password)) {
+    errors.push('Password must contain at least one uppercase letter');
+  }
+  
+  if (!/[a-z]/.test(password)) {
+    errors.push('Password must contain at least one lowercase letter');
+  }
+  
+  if (!/\d/.test(password)) {
+    errors.push('Password must contain at least one number');
+  }
+  
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+    errors.push('Password must contain at least one special character');
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors: errors
+  };
 };
 
 // Static method to get all roles

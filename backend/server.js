@@ -130,6 +130,7 @@ app.use('/api/regularization-team-manager', regularizationTeamManagerRoutes);
 app.use('/api/regularization-vp', regularizationVPRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/permissions', permissionRoutes);
+app.use('/api/document-fix', require('./routes/documentFix'));
 
 // Health check route
 app.get('/api/health', (req, res) => {

@@ -119,7 +119,8 @@ const createUser = async (req, res) => {
       designation,
       joiningDate,
       isActive = true,
-      teamId // New field for team assignment
+      teamId, // New field for team assignment
+      sendEmail = true // Option to send email with credentials
     } = req.body;
 
     // Check if user already exists
@@ -170,10 +171,14 @@ const createUser = async (req, res) => {
       }
     }
 
+    // Generate default password if not provided
+    const userPassword = password || User.generateDefaultPassword();
+    const isDefaultPassword = !password; // If no password provided, it's a default password
+
     // Create new user
     const user = new User({
       email: email.toLowerCase(),
-      password,
+      password: userPassword,
       firstName,
       lastName,
       role,
@@ -184,7 +189,9 @@ const createUser = async (req, res) => {
       joiningDate: joiningDate || new Date(),
       isActive,
       team: teamId || null, // Set team reference
-      createdBy: req.user._id
+      createdBy: req.user._id,
+      isFirstLogin: true,
+      isDefaultPassword: isDefaultPassword
     });
 
     await user.save();
@@ -199,7 +206,40 @@ const createUser = async (req, res) => {
       await team.save();
     }
 
-    res.status(201).json({
+    // Send email with credentials if requested
+    let emailSent = false;
+    let emailError = null;
+    
+    if (sendEmail) {
+      try {
+        // Check if email credentials are configured
+        if (!process.env.MAIL_USER || !process.env.MAIL_PASS) {
+          emailError = 'Email credentials not configured. Please set MAIL_USER and MAIL_PASS in environment variables.';
+        } else {
+          const emailService = require('../services/emailService');
+          await emailService.sendNewUserCredentials({
+            to: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email,
+            password: userPassword,
+            employeeId: user.employeeId
+          });
+          emailSent = true;
+        }
+      } catch (error) {
+        console.error('Email sending error:', error);
+        if (error.message.includes('Missing credentials')) {
+          emailError = 'Email credentials not configured properly. Please check your email settings.';
+        } else if (error.message.includes('Invalid login')) {
+          emailError = 'Invalid email credentials. Please check your email username and password.';
+        } else {
+          emailError = `Email sending failed: ${error.message}`;
+        }
+      }
+    }
+
+    const response = {
       success: true,
       message: team ? 'User created and assigned to team successfully' : 'User created successfully',
       user: {
@@ -216,9 +256,30 @@ const createUser = async (req, res) => {
         designation: user.designation,
         joiningDate: user.joiningDate,
         isActive: user.isActive,
+        isFirstLogin: user.isFirstLogin,
+        isDefaultPassword: user.isDefaultPassword,
         createdAt: user.createdAt
       }
-    });
+    };
+
+    // Add email status to response
+    if (sendEmail) {
+      response.emailStatus = {
+        sent: emailSent,
+        error: emailError
+      };
+      
+      // Include credentials in response if email failed
+      if (!emailSent) {
+        response.credentials = {
+          email: user.email,
+          password: userPassword,
+          message: 'Email failed to send. Please share these credentials with the user manually.'
+        };
+      }
+    }
+
+    res.status(201).json(response);
 
   } catch (error) {
     console.error('Create user error:', error);

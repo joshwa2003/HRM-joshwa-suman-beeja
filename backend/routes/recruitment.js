@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { auth, roleAccess } = require('../middleware/auth');
 const { resumeUpload } = require('../middleware/upload');
+const supabaseUpload = require('../middleware/supabaseUpload');
 const recruitmentController = require('../controllers/recruitmentController');
 
 // ==================== JOB MANAGEMENT ROUTES ====================
@@ -55,10 +56,17 @@ router.get('/public/jobs/:id',
   recruitmentController.getPublicJob
 );
 
-// Submit job application (no auth required)
+// Submit job application (no auth required) - Legacy local storage
 router.post('/public/jobs/:jobId/apply', 
   resumeUpload.single('resume'),
   recruitmentController.submitApplication
+);
+
+// Submit job application with Supabase (no auth required) - New preferred method
+router.post('/public/jobs/:jobId/apply-supabase',
+  supabaseUpload.resume,
+  recruitmentController.submitApplication,
+  supabaseUpload.handleError
 );
 
 // ==================== APPLICATION MANAGEMENT ROUTES ====================

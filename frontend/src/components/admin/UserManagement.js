@@ -87,7 +87,8 @@ const UserManagement = () => {
     phoneNumber: '',
     designation: '',
     joiningDate: '',
-    isActive: true
+    isActive: true,
+    sendEmail: true
   });
 
   // Team assignment states
@@ -211,7 +212,8 @@ const UserManagement = () => {
       phoneNumber: '',
       designation: '',
       joiningDate: '',
-      isActive: true
+      isActive: true,
+      sendEmail: true
     });
     
     // Reset team form data
@@ -504,14 +506,29 @@ const UserManagement = () => {
         userData.teamId = teamFormData.selectedTeam;
       }
 
+      // Include sendEmail option
+      userData.sendEmail = addFormData.sendEmail;
+
       const response = await userAPI.createUser(userData);
       
       if (response.data.success) {
         let successMessage = 'User created successfully!';
         
+        // Check email status and provide feedback
+        if (response.data.emailStatus) {
+          if (response.data.emailStatus.sent) {
+            successMessage += ' Login credentials have been sent to the user\'s email.';
+          } else if (response.data.emailStatus.error) {
+            successMessage += ` Warning: Email could not be sent (${response.data.emailStatus.error}).`;
+            if (response.data.credentials) {
+              successMessage += ` Please manually share these credentials: Email: ${response.data.credentials.email}, Password: ${response.data.credentials.password}`;
+            }
+          }
+        }
+        
         // Team assignment is now handled in the backend during user creation
         if (showTeamCreation && teamFormData.selectedTeam) {
-          successMessage = 'User created and assigned to team successfully!';
+          successMessage = successMessage.replace('User created successfully!', 'User created and assigned to team successfully!');
         }
 
         setShowAddModal(false);
@@ -527,7 +544,8 @@ const UserManagement = () => {
           phoneNumber: '',
           designation: '',
           joiningDate: '',
-          isActive: true
+          isActive: true,
+          sendEmail: true
         });
         setTeamFormData({
           selectedTeam: ''
@@ -828,6 +846,7 @@ const UserManagement = () => {
                         <TableCell>
                           <Box sx={{ display: 'flex', alignItems: 'center' }}>
                             <Avatar
+                              src={userData.profilePhoto}
                               sx={{
                                 bgcolor: '#0A192F',
                                 color: 'white',
@@ -837,7 +856,7 @@ const UserManagement = () => {
                                 fontWeight: 600,
                               }}
                             >
-                              {getInitials(userData.firstName, userData.lastName)}
+                              {!userData.profilePhoto && getInitials(userData.firstName, userData.lastName)}
                             </Avatar>
                             <Box>
                               <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
@@ -1181,6 +1200,32 @@ const UserManagement = () => {
                   }
                   label="Active User (can login to the system)"
                 />
+              </Grid>
+              <Grid item xs={12}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      name="sendEmail"
+                      checked={addFormData.sendEmail}
+                      onChange={handleAddInputChange}
+                      sx={{
+                        '& .MuiSwitch-switchBase.Mui-checked': {
+                          color: '#20C997',
+                        },
+                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                          backgroundColor: '#20C997',
+                        },
+                      }}
+                    />
+                  }
+                  label="Send login credentials via email"
+                />
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, ml: 4 }}>
+                  {addFormData.sendEmail 
+                    ? "✅ An email with login credentials will be sent to the user's email address" 
+                    : "⚠️ No email will be sent. You'll need to manually share the credentials with the user"
+                  }
+                </Typography>
               </Grid>
             </Grid>
           </DialogContent>

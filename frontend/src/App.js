@@ -3,6 +3,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ChatShortcutProvider } from './context/ChatShortcutContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import ProfileCompletionGuard from './components/ProfileCompletionGuard';
+import ProfileAccessGuard from './components/ProfileAccessGuard';
 import Layout from './components/Layout';
 import Login from './components/Login';
 import MyProfile from './components/MyProfile';
@@ -89,8 +91,19 @@ const RoleBasedRedirect = () => {
     return <Navigate to="/login" replace />;
   }
   
-  // All users go to dashboard
+  // Redirect logic based on user state
   const getDefaultRoute = (user) => {
+    // PRIORITY 1: If user has default password, redirect to login for password change
+    if (user?.isDefaultPassword) {
+      return '/login';
+    }
+    
+    // PRIORITY 2: If user doesn't have default password but profile completion is low, go to profile
+    if (user?.profileCompletionPercentage && user.profileCompletionPercentage < 75) {
+      return '/profile';
+    }
+    
+    // PRIORITY 3: Otherwise go to dashboard
     return '/dashboard';
   };
   
@@ -108,9 +121,10 @@ function App() {
           }}
         >
           <div className="App">
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/login" element={<Login />} />
+            <ProfileAccessGuard>
+              <Routes>
+                {/* Public Routes */}
+                <Route path="/login" element={<Login />} />
               
               {/* Protected Routes */}
               <Route 
@@ -138,7 +152,9 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <Dashboard />
+                      <ProfileCompletionGuard>
+                        <Dashboard />
+                      </ProfileCompletionGuard>
                     </Layout>
                   </ProtectedRoute>
                 } 
@@ -150,7 +166,9 @@ function App() {
                 element={
                   <ProtectedRoute requiredRoles={['Admin', 'Vice President', 'HR BP', 'HR Manager', 'HR Executive']}>
                     <Layout>
-                      <DepartmentManagement />
+                      <ProfileCompletionGuard>
+                        <DepartmentManagement />
+                      </ProfileCompletionGuard>
                     </Layout>
                   </ProtectedRoute>
                 } 
@@ -162,7 +180,9 @@ function App() {
                 element={
                   <ProtectedRoute requiredRoles={['Admin', 'Vice President', 'HR BP', 'HR Manager', 'HR Executive']}>
                     <Layout>
-                      <UserManagement />
+                      <ProfileCompletionGuard>
+                        <UserManagement />
+                      </ProfileCompletionGuard>
                     </Layout>
                   </ProtectedRoute>
                 } 
@@ -194,7 +214,9 @@ function App() {
                 element={
                   <ProtectedRoute requiredRoles={['Admin', 'Vice President', 'HR BP', 'HR Manager', 'HR Executive', 'Team Manager', 'Team Leader']}>
                     <Layout>
-                      <LeaveApproval />
+                      <ProfileCompletionGuard>
+                        <LeaveApproval />
+                      </ProfileCompletionGuard>
                     </Layout>
                   </ProtectedRoute>
                 } 
@@ -968,7 +990,8 @@ function App() {
                   </Layout>
                 } 
               />
-            </Routes>
+              </Routes>
+            </ProfileAccessGuard>
           </div>
         </Router>
       </ChatShortcutProvider>

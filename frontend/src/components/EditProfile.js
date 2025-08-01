@@ -1,38 +1,51 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import {
+  Box,
+  Container,
+  Typography,
+  Tabs,
+  Tab,
+  Card,
+  CardContent,
+  Button,
+  Alert,
+  CircularProgress,
+  useTheme,
+  AppBar,
+  Toolbar,
+  IconButton,
+  Chip
+} from '@mui/material';
+import {
+  ArrowBack,
+  Save,
+  Refresh,
+  Person,
+  Work,
+  Description,
+  ContactEmergency,
+  AccountBalance
+} from '@mui/icons-material';
 import { authAPI } from '../utils/api';
-import PersonalInfoForm from './forms/PersonalInfoForm';
-import WorkInfoForm from './forms/WorkInfoForm';
-import DocumentsForm from './forms/DocumentsForm';
-import EmergencyContactForm from './forms/EmergencyContactForm';
-import BankDetailsForm from './forms/BankDetailsForm';
+import PersonalInfoTab from './profile/PersonalInfoTab';
+import WorkInfoTab from './profile/WorkInfoTab';
+import DocumentsTab from './profile/DocumentsTab';
+import EmergencyContactTab from './profile/EmergencyContactTab';
+import BankSalaryTab from './profile/BankSalaryTab';
 
 const EditProfile = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('personal');
+  const theme = useTheme();
+  const [activeTab, setActiveTab] = useState(0);
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notification, setNotification] = useState(null);
   const [hasChanges, setHasChanges] = useState(false);
-  
-  // State to maintain form data across tab switches
-  const [formDataState, setFormDataState] = useState({
-    personal: {},
-    work: {},
-    emergency: {},
-    bank: {},
-    documents: {}
-  });
-  
-  // Refs to access form data from child components
-  const personalFormRef = useRef();
-  const workFormRef = useRef();
-  const documentsFormRef = useRef();
-  const emergencyFormRef = useRef();
-  const bankFormRef = useRef();
+  const [formData, setFormData] = useState({});
 
   useEffect(() => {
     fetchProfileData();
@@ -42,6 +55,7 @@ const EditProfile = () => {
     try {
       const response = await authAPI.getProfile();
       setProfileData(response.data.user);
+      setFormData(response.data.user);
     } catch (error) {
       console.error('Error fetching profile:', error);
       setNotification({
@@ -53,133 +67,27 @@ const EditProfile = () => {
     }
   };
 
-  const handleFormChange = () => {
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
+  };
+
+  const handleFormUpdate = (section, data) => {
+    setFormData(prev => ({
+      ...prev,
+      ...data
+    }));
     setHasChanges(true);
   };
 
-  // Save current form data when switching tabs
-  const handleTabSwitch = (newTab) => {
-    // Save current tab's data before switching
-    const currentFormData = getCurrentFormData();
-    if (currentFormData) {
-      setFormDataState(prev => ({
-        ...prev,
-        [activeTab]: currentFormData
-      }));
-    }
-    setActiveTab(newTab);
-  };
-
-  // Get current form data based on active tab
-  const getCurrentFormData = () => {
-    switch (activeTab) {
-      case 'personal':
-        return personalFormRef.current?.getFormData();
-      case 'work':
-        return workFormRef.current?.getFormData();
-      case 'emergency':
-        return emergencyFormRef.current?.getFormData();
-      case 'bank':
-        return bankFormRef.current?.getFormData();
-      case 'documents':
-        return documentsFormRef.current?.getFormData();
-      default:
-        return null;
-    }
-  };
-
-  const handleSaveAll = async () => {
+  const handleSave = async () => {
     setSaving(true);
     try {
-      // Save current form data before collecting all data
-      const currentFormData = getCurrentFormData();
-      if (currentFormData) {
-        setFormDataState(prev => ({
-          ...prev,
-          [activeTab]: currentFormData
-        }));
-      }
-
-      // Collect data from all forms (including saved state)
-      const personalData = activeTab === 'personal' ? currentFormData : formDataState.personal;
-      const workData = activeTab === 'work' ? currentFormData : formDataState.work;
-      const emergencyData = activeTab === 'emergency' ? currentFormData : formDataState.emergency;
-      const bankData = activeTab === 'bank' ? currentFormData : formDataState.bank;
-
-      // Prepare the update payload with proper structure for backend validation
-      const updatePayload = {};
+      const response = await authAPI.updateProfile(formData);
       
-      // Personal Info - only add if data exists
-      if (personalData?.firstName) updatePayload.firstName = personalData.firstName;
-      if (personalData?.lastName) updatePayload.lastName = personalData.lastName;
-      if (personalData?.email) updatePayload.email = personalData.email;
-      if (personalData?.phoneNumber) updatePayload.phoneNumber = personalData.phoneNumber;
-      if (personalData?.dateOfBirth) {
-        // Convert date to ISO8601 format for backend validation
-        const date = new Date(personalData.dateOfBirth);
-        updatePayload.dateOfBirth = date.toISOString();
-      }
-      if (personalData?.gender) updatePayload.gender = personalData.gender;
-      if (personalData?.profilePhoto !== undefined) updatePayload.profilePhoto = personalData.profilePhoto;
-      if (personalData?.profilePhotoPath !== undefined) updatePayload.profilePhotoPath = personalData.profilePhotoPath;
-      if (personalData?.address) updatePayload.address = personalData.address;
-      
-      // Work Info (only fields that regular users can update)
-      if (workData?.designation) updatePayload.designation = workData.designation;
-      if (workData?.workLocation) updatePayload.workLocation = workData.workLocation;
-      
-      // Emergency Contact - handle nested structure from form
-      if (emergencyData && Object.keys(emergencyData).length > 0) {
-        const emergencyContact = {};
-        // Check if data is nested under emergencyContact key
-        const contactData = emergencyData.emergencyContact || emergencyData;
-        
-        if (contactData.name) emergencyContact.name = contactData.name;
-        if (contactData.relationship) emergencyContact.relationship = contactData.relationship;
-        if (contactData.phone) emergencyContact.phone = contactData.phone;
-        if (contactData.address) emergencyContact.address = contactData.address;
-        
-        if (Object.keys(emergencyContact).length > 0) {
-          updatePayload.emergencyContact = emergencyContact;
-        }
-      }
-      
-      // Bank Details - handle nested structure from form
-      if (bankData && Object.keys(bankData).length > 0) {
-        const bankDetails = {};
-        // Check if data is nested under bankDetails key
-        const detailsData = bankData.bankDetails || bankData;
-        
-        if (detailsData.accountNumber) bankDetails.accountNumber = detailsData.accountNumber;
-        if (detailsData.bankName) bankDetails.bankName = detailsData.bankName;
-        if (detailsData.ifscCode) bankDetails.ifscCode = detailsData.ifscCode;
-        if (detailsData.pfNumber) bankDetails.pfNumber = detailsData.pfNumber;
-        if (detailsData.esiNumber) bankDetails.esiNumber = detailsData.esiNumber;
-        if (detailsData.panNumber) bankDetails.panNumber = detailsData.panNumber;
-        
-        if (Object.keys(bankDetails).length > 0) {
-          updatePayload.bankDetails = bankDetails;
-        }
-      }
-
-      console.log('Saving profile data:', updatePayload);
-
-      const response = await authAPI.updateProfile(updatePayload);
-      
-      // Check if response is successful
       if (response.data && response.data.user) {
-        // Update local profile data with the response
         setProfileData(response.data.user);
+        setFormData(response.data.user);
         setHasChanges(false);
-        
-        // Clear saved form state after successful save
-        setFormDataState({
-          personal: {},
-          work: {},
-          emergency: {},
-          bank: {},
-          documents: {}
-        });
         
         setNotification({
           type: 'success',
@@ -191,10 +99,7 @@ const EditProfile = () => {
         
         // Clear notification after 3 seconds
         setTimeout(() => setNotification(null), 3000);
-      } else {
-        throw new Error('Invalid response from server');
       }
-      
     } catch (error) {
       console.error('Error updating profile:', error);
       
@@ -207,8 +112,6 @@ const EditProfile = () => {
         if (Array.isArray(errors)) {
           errorMessage = errors.map(err => err.message || err.msg || err).join(', ');
         }
-      } else if (error.message) {
-        errorMessage = error.message;
       }
       
       setNotification({
@@ -222,9 +125,8 @@ const EditProfile = () => {
   };
 
   const handleDiscard = () => {
-    // Reset all forms to original data
+    setFormData(profileData);
     setHasChanges(false);
-    fetchProfileData();
     setNotification({
       type: 'info',
       message: 'Changes discarded'
@@ -233,189 +135,264 @@ const EditProfile = () => {
   };
 
   const tabs = [
-    { id: 'personal', label: 'Personal Info', icon: 'bi-person' },
-    { id: 'work', label: 'Work Info', icon: 'bi-briefcase' },
-    { id: 'documents', label: 'Documents', icon: 'bi-file-text' },
-    { id: 'emergency', label: 'Emergency Contact', icon: 'bi-person-exclamation' },
-    { id: 'bank', label: 'Bank Details', icon: 'bi-bank' }
+    { 
+      label: 'Personal Info', 
+      icon: <Person />, 
+      component: PersonalInfoTab 
+    },
+    { 
+      label: 'Work Info', 
+      icon: <Work />, 
+      component: WorkInfoTab 
+    },
+    { 
+      label: 'Documents', 
+      icon: <Description />, 
+      component: DocumentsTab 
+    },
+    { 
+      label: 'Emergency Contact', 
+      icon: <ContactEmergency />, 
+      component: EmergencyContactTab 
+    },
+    { 
+      label: 'Bank & Salary', 
+      icon: <AccountBalance />, 
+      component: BankSalaryTab 
+    }
   ];
 
-  const renderTabContent = () => {
-    if (loading) {
-      return (
-        <div className="d-flex justify-content-center align-items-center" style={{ height: '400px' }}>
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
-        </div>
-      );
-    }
+  const TabPanel = ({ children, value, index, ...other }) => (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`edit-tabpanel-${index}`}
+      aria-labelledby={`edit-tab-${index}`}
+      {...other}
+    >
+      {value === index && (
+        <Box sx={{ py: 3 }}>
+          {children}
+        </Box>
+      )}
+    </div>
+  );
 
-    if (!profileData) {
-      return <div className="alert alert-warning">Unable to load profile data</div>;
-    }
-
-    // Merge profile data with saved form data for current tab
-    const getFormData = (tabName) => {
-      const savedData = formDataState[tabName];
-      if (savedData && Object.keys(savedData).length > 0) {
-        return { ...profileData, ...savedData };
-      }
-      return profileData;
-    };
-
-    switch (activeTab) {
-      case 'personal':
-        return (
-          <PersonalInfoForm 
-            ref={personalFormRef}
-            data={getFormData('personal')} 
-            onChange={handleFormChange}
-          />
-        );
-      case 'work':
-        return (
-          <WorkInfoForm 
-            ref={workFormRef}
-            data={getFormData('work')} 
-            onChange={handleFormChange}
-          />
-        );
-      case 'documents':
-        return (
-          <DocumentsForm 
-            ref={documentsFormRef}
-            data={getFormData('documents')} 
-            onChange={handleFormChange}
-          />
-        );
-      case 'emergency':
-        return (
-          <EmergencyContactForm 
-            ref={emergencyFormRef}
-            data={getFormData('emergency')} 
-            onChange={handleFormChange}
-          />
-        );
-      case 'bank':
-        return (
-          <BankDetailsForm 
-            ref={bankFormRef}
-            data={getFormData('bank')} 
-            onChange={handleFormChange}
-          />
-        );
-      default:
-        return <div>Select a tab to edit content</div>;
-    }
-  };
+  if (loading) {
+    return (
+      <Box 
+        display="flex" 
+        justifyContent="center" 
+        alignItems="center" 
+        minHeight="100vh"
+        sx={{ background: `linear-gradient(135deg, ${theme.palette.primary.main}08 0%, ${theme.palette.primary.dark}08 100%)` }}
+      >
+        <Box textAlign="center">
+          <CircularProgress size={60} thickness={4} />
+          <Typography variant="h6" sx={{ mt: 2, color: 'text.secondary' }}>
+            Loading profile data...
+          </Typography>
+        </Box>
+      </Box>
+    );
+  }
 
   return (
-    <div className="container-fluid py-4">
-      {/* Notification */}
-      {notification && (
-        <div className={`alert alert-${notification.type === 'success' ? 'success' : 'danger'} alert-dismissible fade show`} role="alert">
-          <i className={`bi ${notification.type === 'success' ? 'bi-check-circle' : 'bi-exclamation-triangle'} me-2`}></i>
-          {notification.message}
-          <button 
-            type="button" 
-            className="btn-close" 
-            onClick={() => setNotification(null)}
-          ></button>
-        </div>
-      )}
+    <Box sx={{ 
+      minHeight: '100vh',
+      background: `linear-gradient(135deg, ${theme.palette.primary.main}08 0%, ${theme.palette.primary.dark}08 100%)`
+    }}>
+      {/* Header */}
+      <AppBar 
+        position="static" 
+        elevation={2}
+        sx={{ 
+          background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+          mb: 3,
+          zIndex: 1000
+        }}
+      >
+        <Toolbar sx={{ minHeight: '80px', py: 2 }}>
+          <IconButton
+            edge="start"
+            color="inherit"
+            onClick={() => navigate('/profile')}
+            sx={{ 
+              mr: 2,
+              bgcolor: 'rgba(255,255,255,0.1)',
+              '&:hover': {
+                bgcolor: 'rgba(255,255,255,0.2)'
+              }
+            }}
+          >
+            <ArrowBack />
+          </IconButton>
+          <Box sx={{ flexGrow: 1 }}>
+            <Typography variant="h4" fontWeight="bold" sx={{ color: 'white', mb: 0.5 }}>
+              Edit Profile
+            </Typography>
+            <Typography variant="body1" sx={{ opacity: 0.9, color: 'white' }}>
+              Update your profile information
+            </Typography>
+          </Box>
+          <Chip
+            label={user?.role}
+            sx={{ 
+              bgcolor: 'rgba(255,255,255,0.2)',
+              color: 'white',
+              fontWeight: 600,
+              fontSize: '0.875rem'
+            }}
+          />
+        </Toolbar>
+      </AppBar>
 
-      <div className="row">
-        <div className="col-12">
-          <div className="d-flex justify-content-between align-items-center mb-4">
-            <div>
-              <h2 className="mb-1">Edit Profile</h2>
-              <p className="text-muted mb-0">Update your profile information</p>
-            </div>
-            <div>
-              <button 
-                className="btn btn-outline-secondary"
-                onClick={() => navigate('/profile')}
-              >
-                <i className="bi bi-arrow-left me-2"></i>
-                Back to Profile
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <Container maxWidth="lg">
+        {/* Notification */}
+        {notification && (
+          <Alert 
+            severity={notification.type === 'success' ? 'success' : notification.type === 'info' ? 'info' : 'error'}
+            onClose={() => setNotification(null)}
+            sx={{ mb: 3 }}
+          >
+            {notification.message}
+          </Alert>
+        )}
 
-      <div className="row">
-        <div className="col-12">
-          {/* Navigation Tabs */}
-          <div className="card">
-            <div className="card-header">
-              <ul className="nav nav-tabs card-header-tabs" role="tablist">
-                {tabs.map((tab) => (
-                  <li key={tab.id} className="nav-item" role="presentation">
-                    <button
-                      className={`nav-link ${activeTab === tab.id ? 'active' : ''}`}
-                      onClick={() => handleTabSwitch(tab.id)}
-                      type="button"
-                      role="tab"
-                    >
-                      <i className={`${tab.icon} me-2`}></i>
-                      {tab.label}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="card-body">
-              {renderTabContent()}
-            </div>
+        {/* Main Content */}
+        <Card elevation={2} sx={{ borderRadius: 3, overflow: 'hidden' }}>
+          {/* Tabs */}
+          <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+            <Tabs 
+              value={activeTab} 
+              onChange={handleTabChange}
+              variant="scrollable"
+              scrollButtons="auto"
+              sx={{
+                '& .MuiTab-root': {
+                  minHeight: 72,
+                  textTransform: 'none',
+                  fontSize: '0.95rem',
+                  fontWeight: 500,
+                  '&.Mui-selected': {
+                    fontWeight: 600,
+                  }
+                }
+              }}
+            >
+              {tabs.map((tab, index) => (
+                <Tab
+                  key={index}
+                  icon={tab.icon}
+                  label={tab.label}
+                  iconPosition="start"
+                  sx={{ 
+                    gap: 1,
+                    px: 3,
+                    '& .MuiSvgIcon-root': {
+                      fontSize: '1.2rem'
+                    }
+                  }}
+                />
+              ))}
+            </Tabs>
+          </Box>
+
+          {/* Tab Content */}
+          <CardContent sx={{ p: 0 }}>
+            {tabs.map((tab, index) => {
+              const TabComponent = tab.component;
+              return (
+                <TabPanel key={index} value={activeTab} index={index}>
+                  <Box sx={{ px: 3 }}>
+                    <TabComponent
+                      profileData={formData}
+                      onUpdate={(data) => handleFormUpdate(tab.label.toLowerCase().replace(' ', ''), data)}
+                      onNotification={(message, type) => setNotification({ message, type })}
+                      isEditable={true}
+                    />
+                  </Box>
+                </TabPanel>
+              );
+            })}
+          </CardContent>
+
+          {/* Action Buttons */}
+          <Box 
+            sx={{ 
+              p: 3, 
+              borderTop: 1, 
+              borderColor: 'divider',
+              background: theme.palette.grey[50],
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              position: 'sticky',
+              bottom: 0,
+              zIndex: 10,
+              minHeight: '80px'
+            }}
+          >
+            <Box>
+              {hasChanges && (
+                <Typography variant="body2" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box 
+                    sx={{ 
+                      width: 8, 
+                      height: 8, 
+                      borderRadius: '50%', 
+                      bgcolor: 'warning.main'
+                    }} 
+                  />
+                  You have unsaved changes
+                </Typography>
+              )}
+            </Box>
             
-            {/* Common Save/Discard Footer */}
-            <div className="card-footer bg-light">
-              <div className="d-flex justify-content-between align-items-center">
-                <div>
-                  {hasChanges && (
-                    <small className="text-warning">
-                      <i className="bi bi-exclamation-triangle me-1"></i>
-                      You have unsaved changes
-                    </small>
-                  )}
-                </div>
-                <div className="d-flex gap-2">
-                  <button 
-                    type="button"
-                    className="btn btn-outline-secondary"
-                    onClick={handleDiscard}
-                    disabled={!hasChanges || saving}
-                  >
-                    <i className="bi bi-arrow-clockwise me-2"></i>
-                    Discard Changes
-                  </button>
-                  <button 
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={handleSaveAll}
-                    disabled={!hasChanges || saving}
-                  >
-                    {saving ? (
-                      <>
-                        <span className="spinner-border spinner-border-sm me-2" role="status"></span>
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <i className="bi bi-check-lg me-2"></i>
-                        Save All Changes
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Button
+                variant="outlined"
+                startIcon={<Refresh />}
+                onClick={handleDiscard}
+                disabled={!hasChanges || saving}
+                sx={{ 
+                  textTransform: 'none',
+                  fontWeight: 500,
+                  px: 3,
+                  py: 1.5,
+                  minWidth: '140px'
+                }}
+              >
+                Discard Changes
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <Save />}
+                onClick={handleSave}
+                disabled={!hasChanges || saving}
+                sx={{ 
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  px: 3,
+                  py: 1.5,
+                  minWidth: '160px',
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                  '&:hover': {
+                    background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`
+                  },
+                  '&:disabled': {
+                    background: theme.palette.grey[300],
+                    color: theme.palette.grey[500]
+                  }
+                }}
+              >
+                {saving ? 'Saving...' : 'Save All Changes'}
+              </Button>
+            </Box>
+          </Box>
+        </Card>
+      </Container>
+    </Box>
   );
 };
 

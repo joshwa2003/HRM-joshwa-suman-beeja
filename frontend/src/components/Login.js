@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import FirstLoginPasswordChange from './FirstLoginPasswordChange';
 import {
   Box,
   Card,
@@ -35,8 +36,10 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [userInfo, setUserInfo] = useState(null);
 
-  const { login, isAuthenticated, isLoading, error, clearError } = useAuth();
+  const { login, isAuthenticated, isLoading, error, clearError, user } = useAuth();
   const location = useLocation();
   const theme = useTheme();
 
@@ -70,9 +73,16 @@ const Login = () => {
     return Object.keys(errors).length === 0;
   };
 
-  // Redirect if already authenticated
-  const from = location.state?.from?.pathname || '/dashboard';
-  if (isAuthenticated) {
+  // Check if user needs to change password after login
+  useEffect(() => {
+    if (isAuthenticated && user?.isDefaultPassword) {
+      setShowPasswordChange(true);
+    }
+  }, [isAuthenticated, user]);
+
+  // Redirect if already authenticated and password is not default
+  const from = location.state?.from?.pathname || '/profile';
+  if (isAuthenticated && !user?.isDefaultPassword) {
     return <Navigate to={from} replace />;
   }
 
@@ -111,22 +121,24 @@ const Login = () => {
     try {
       const result = await login(formData);
       if (result.success) {
-        // Redirect will happen automatically due to isAuthenticated change
         console.log('Login successful');
-        // Only clear form on successful login
+        setUserInfo(result.user);
+        
+        // Check if user needs to change default password
+        if (result.user?.isDefaultPassword) {
+          setShowPasswordChange(true);
+        }
+        
+        // Clear form on successful login
         setFormData({
           email: '',
           password: '',
         });
       } else {
-        // Error will be displayed via the error state from AuthContext
         console.log('Login failed:', result.error);
-        // Form data remains intact - no clearing on failure
       }
     } catch (error) {
       console.error('Login error:', error);
-      // Form data remains intact - no clearing on failure
-      // The error will be handled by AuthContext and displayed to user
     } finally {
       setIsSubmitting(false);
     }
@@ -159,6 +171,12 @@ const Login = () => {
     setShowPassword(!showPassword);
   };
 
+  const handlePasswordChanged = () => {
+    setShowPasswordChange(false);
+    // Force a page reload to ensure the auth context is updated with new user data
+    window.location.href = '/profile';
+  };
+
   if (isLoading) {
     return (
       <Box
@@ -173,6 +191,11 @@ const Login = () => {
         <CircularProgress size={60} />
       </Box>
     );
+  }
+
+  // Show password change screen if user has default password
+  if (showPasswordChange) {
+    return <FirstLoginPasswordChange onPasswordChanged={handlePasswordChanged} />;
   }
 
   return (

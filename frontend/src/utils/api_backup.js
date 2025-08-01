@@ -68,6 +68,28 @@ export const authAPI = {
   checkProfileCompletion: () => api.get('/auth/profile-completion'),
   sendPasswordEmail: (data) => api.post('/auth/send-password-email', data),
 };
+=======
+// Auth API calls
+export const authAPI = {
+  login: (credentials) => api.post('/auth/login', credentials),
+  register: (userData) => api.post('/auth/register', userData),
+  getProfile: () => api.get('/auth/profile'),
+  updateProfile: (profileData) => api.put('/auth/profile', profileData),
+  verifyToken: () => api.get('/auth/verify'),
+  verifyCurrentPassword: (data) => api.post('/auth/verify-current-password', data),
+  sendPasswordChangeOTP: (data) => api.post('/auth/send-password-change-otp', data),
+  verifyOTPAndChangePassword: (data) => api.post('/auth/verify-otp-and-change-password', data),
+  logout: () => api.post('/auth/logout'),
+  checkIn: (data) => api.post('/attendance/checkin', data),
+  checkOut: (data) => api.post('/attendance/checkout', data),
+  changePassword: (passwordData) => api.put('/auth/change-password', passwordData),
+  
+  // New password management endpoints
+  forcePasswordChange: (passwordData) => api.post('/auth/force-password-change', passwordData),
+  validatePassword: (passwordData) => api.post('/auth/validate-password', passwordData),
+  checkProfileCompletion: () => api.get('/auth/profile-completion'),
+  sendPasswordEmail: (data) => api.post('/auth/send-password-email', data),
+};
 
 // Attendance API calls
 export const attendanceAPI = {

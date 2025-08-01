@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { userAPI, teamAPI } from '../utils/api';
+import api from '../utils/api';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -55,10 +56,21 @@ const Dashboard = () => {
   const [teamData, setTeamData] = useState(null);
   const [managedTeams, setManagedTeams] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [profileData, setProfileData] = useState(null);
 
   useEffect(() => {
     fetchDashboardData();
+    fetchProfileData();
   }, []);
+
+  const fetchProfileData = async () => {
+    try {
+      const response = await api.get('/auth/profile');
+      setProfileData(response.data.user);
+    } catch (error) {
+      console.error('Error fetching profile data:', error);
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -506,6 +518,7 @@ const Dashboard = () => {
                       <ListItem key={recentUser._id} sx={{ px: 0, py: 1 }}>
                         <ListItemAvatar>
                           <Avatar
+                            src={recentUser.profilePhoto}
                             sx={{
                               bgcolor: '#0A192F',
                               color: 'white',
@@ -513,7 +526,7 @@ const Dashboard = () => {
                               height: 40,
                             }}
                           >
-                            {getInitials(recentUser.firstName, recentUser.lastName)}
+                            {!recentUser.profilePhoto && getInitials(recentUser.firstName, recentUser.lastName)}
                           </Avatar>
                         </ListItemAvatar>
                         <ListItemText
@@ -619,6 +632,7 @@ const Dashboard = () => {
                   </Typography>
                 </Box>
                 <Avatar
+                  src={profileData?.profilePhoto}
                   sx={{
                     width: 80,
                     height: 80,
@@ -630,7 +644,7 @@ const Dashboard = () => {
                     fontWeight: 700,
                   }}
                 >
-                  {getInitials(user?.firstName, user?.lastName)}
+                  {!profileData?.profilePhoto && getInitials(user?.firstName, user?.lastName)}
                 </Avatar>
                 <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
                   {user?.firstName} {user?.lastName}

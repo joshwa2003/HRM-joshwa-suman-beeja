@@ -416,3 +416,125 @@ const WorkHoursSettings = () => {
             <AccordionDetails>
               <Grid container spacing={3}>
                 <Grid item xs={12} md={4}>
+                  <Paper sx={{ p: 2, height: '100%' }}>
+                    <Typography variant="subtitle1" gutterBottom color="primary">
+                      <TimerIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+                      Working Hours Best Practices
+                    </Typography>
+                    <List dense>
+                      <ListItem>
+                        <ListItemIcon>
+                          <CheckCircleIcon color="success" fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText 
+                          primary="Standard 8-hour workday"
+                          secondary="Most organizations use 8 hours as standard"
+                        />
+                      </ListItem>
+                      <ListItem>
+                        <ListItemIcon>
+                          <CheckCircleIcon color="success" fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText 
+                          primary="Minimum 6 hours"
+                          secondary="Ensures adequate productivity while allowing flexibility"
+                        />
+                      </ListItem>
+                      <ListItem>
+                        <ListItemIcon>
+                          <CheckCircleIcon color="success" fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText 
+                          primary="15-30 minute late threshold"
+                          secondary="Reasonable buffer for traffic and minor delays"
+                        />
+                      </ListItem>
+                    </List>
+                  </Paper>
+                </Grid>
+
+                <Grid item xs={12} md={4}>
+                  <Paper sx={{ p: 2, height: '100%' }}>
+                    <Typography variant="subtitle1" gutterBottom color="primary">
+                      <SettingsIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+                      System Configuration Tips
+                    </Typography>
+                    <List dense>
+                      <ListItem>
+                        <ListItemIcon>
+                          <InfoIcon color="info" fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText 
+                          primary="Auto-Freeze Records"
+                          secondary="Prevents tampering with old attendance data"
+                        />
+                      </ListItem>
+                      <ListItem>
+                        <ListItemIcon>
+                          <InfoIcon color="info" fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText 
+                          primary="Approval Workflow"
+                          secondary="Ensures proper oversight for attendance changes"
+                        />
+                      </ListItem>
+                      <ListItem>
+                        <ListItemIcon>
+                          <InfoIcon color="info" fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText 
+                          primary="Email Notifications"
+                          secondary="Keeps stakeholders informed of important updates"
+                        />
+                      </ListItem>
+                    </List>
+                  </Paper>
+                </Grid>
+
+                <Grid item xs={12} md={4}>
+                  <Paper sx={{ p: 2, height: '100%' }}>
+                    <Typography variant="subtitle1" gutterBottom color="primary">
+                      <WarningIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+                      Important Considerations
+                    </Typography>
+                    <List dense>
+                      <ListItem>
+                        <ListItemIcon>
+                          <WarningIcon color="warning" fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText 
+                          primary="Test Before Deployment"
+                          secondary="Always test settings with a small group first"
+                        />
+                      </ListItem>
+                      <ListItem>
+                        <ListItemIcon>
+                          <WarningIcon color="warning" fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText 
+                          primary="Communicate Changes"
+                          secondary="Inform employees about policy updates"
+                        />
+                      </ListItem>
+                      <ListItem>
+                        <ListItemIcon>
+                          <WarningIcon color="warning" fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText 
+                          primary="Regular Review"
+                          secondary="Review and adjust settings quarterly"
+                        />
+                      </ListItem>
+                    </List>
+                  </Paper>
+                </Grid>
+              </Grid>
+            </AccordionDetails>
+          </Accordion>
+        </Grid>
+      </Grid>
+    </Box>
+  );
+};
+
+export default WorkHoursSettings;
